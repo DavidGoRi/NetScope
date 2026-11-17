@@ -1,0 +1,23 @@
+# Real scans, known devices and dashboards: they contain the IP and MAC
+# addresses and host names of a real network. Never commit them.
+output/
+_smoke/
+*.report.html
+
+# Demo build output (generated in CI)
+_site/
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Editors and OS
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini

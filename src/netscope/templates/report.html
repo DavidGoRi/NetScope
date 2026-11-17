@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetScope</title>
+<style>
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
+  --text: #1c2430; --muted: #5d6b7c; --accent: #0f8a7e; --accent-soft: #dcf3f0;
+  --ok: #1a7f4b; --ok-soft: #e1f4ea; --warn: #b45309; --warn-soft: #fdf0dc;
+  --crit: #c62828; --crit-soft: #fde4e4; --info: #4b5563; --info-soft: #eceef1;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1419; --surface: #171d24; --surface-2: #1f2730; --border: #2c3641;
+    --text: #e6eaef; --muted: #93a1b0; --accent: #3cc9b8; --accent-soft: #123a36;
+    --ok: #4cc38a; --ok-soft: #15301f; --warn: #f0a548; --warn-soft: #382812;
+    --crit: #f07070; --crit-soft: #3d1a1a; --info: #a3adb8; --info-soft: #252d36;
+    --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171d24; --surface-2: #1f2730; --border: #2c3641;
+  --text: #e6eaef; --muted: #93a1b0; --accent: #3cc9b8; --accent-soft: #123a36;
+  --ok: #4cc38a; --ok-soft: #15301f; --warn: #f0a548; --warn-soft: #382812;
+  --crit: #f07070; --crit-soft: #3d1a1a; --info: #a3adb8; --info-soft: #252d36;
+  --shadow: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.brand svg { width: 22px; height: 22px; color: var(--accent); }
+.meta { color: var(--muted); font-size: 13px; }
+nav { display: flex; gap: 4px; margin-left: auto; }
+nav button, .btn { background: transparent; border: 1px solid transparent; color: var(--muted); padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; }
+nav button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.btn { border-color: var(--border); color: var(--text); background: var(--surface); }
+.btn:hover, nav button:hover { border-color: var(--border); }
+main { padding: 20px 24px 40px; max-width: 1400px; margin: 0 auto; }
+.banner { background: var(--accent-soft); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+.tile .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.tile .value { font-size: 26px; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile.crit .value { color: var(--crit); } .tile.warn .value { color: var(--warn); } .tile.ok .value { color: var(--ok); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+.toolbar { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.toolbar h2 { font-size: 15px; margin: 0 auto 0 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.chip { padding: 3px 10px; font-size: 12px; }
+.chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+input[type="search"] { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 7px 10px; font: inherit; width: 260px; max-width: 100%; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; background: var(--surface-2); cursor: pointer; user-select: none; }
+th:hover { color: var(--text); }
+th .arrow { opacity: .6; margin-left: 4px; }
+tbody tr:last-child td { border-bottom: none; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--surface-2); }
+td.mono, code { font: 12.5px Consolas, "Cascadia Mono", monospace; }
+code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.empty { padding: 30px; text-align: center; color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pill.info { background: var(--info-soft); color: var(--info); }
+.pill.new { background: var(--accent-soft); color: var(--accent); }
+.ports { display: flex; gap: 4px; flex-wrap: wrap; min-width: 190px; max-width: 320px; white-space: normal; }
+.port { font: 12px Consolas, monospace; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); }
+.port.risky { border-color: var(--warn); color: var(--warn); }
+.sub { color: var(--muted); font-size: 12px; }
+.trunc { display: inline-block; max-width: 230px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.detail-head h1 { margin: 0; font-size: 22px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+.card h3 { margin: 0; padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; padding: 12px 16px; }
+dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+.issues { list-style: none; margin: 0; padding: 8px 16px 12px; }
+.issues li { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.issues li:last-child { border-bottom: none; }
+.hidden { display: none !important; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16px 24px; }
+@media (max-width: 640px) {
+  header, main { padding-left: 16px; padding-right: 16px; }
+  nav { margin-left: 0; }
+  .grid { grid-template-columns: 1fr; }
+  input[type="search"] { width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 7.5v4M12 11.5l-5.5 4.5M12 11.5l5.5 4.5"/></svg>
+    NetScope
+  </div>
+  <span class="meta" id="meta"></span>
+  <nav role="tablist">
+    <button role="tab" data-view="devices" aria-selected="true"></button>
+    <button role="tab" data-view="findings" aria-selected="false"></button>
+  </nav>
+  <button class="btn" id="lang"></button>
+  <button class="btn" id="theme"></button>
+</header>
+<main id="app"></main>
+<footer id="footer"></footer>
+
+<script>
+"use strict";
+const SCAN = /*NETSCOPE_DATA*/null;
+
+const I18N = {
+  en: {
+    devices: "Devices", findings: "Findings", lang: "Español", themeDark: "Dark", themeLight: "Light",
+    tDevices: "Devices", tNew: "New", tPorts: "Open ports", tCrit: "Critical", tWarn: "Warnings",
+    search: "Search IP, name, vendor, MAC…", all: "All", exportCsv: "Export CSV",
+    colIp: "IP address", colName: "Name", colVendor: "Vendor", colMac: "MAC", colType: "Type",
+    colPorts: "Open ports", colFindings: "Findings", colDevice: "Device", colSeverity: "Severity", colFinding: "Finding",
+    none: "None", noMatches: "No devices match the filters.", noFindings: "No findings. Nothing risky was detected.",
+    back: "← All devices", identity: "Identity", openPorts: "Open ports", deviceFindings: "Findings",
+    port: "Port", service: "Service", noPorts: "No open ports among the ones checked.",
+    hostname: "Host name", mac: "MAC address", vendor: "Vendor", type: "Type (guess)", seenBy: "Detected by",
+    firstSeen: "First seen", gateway: "Default gateway", thisDevice: "This computer (scanner)",
+    newPill: "New", gatewayPill: "Gateway", selfPill: "This PC", privateMac: "private MAC",
+    unknownVendor: "Unknown vendor", yes: "Yes",
+    crit: "Critical", warn: "Warning", info: "Info",
+    baseline: "First scan of this network: every device has been saved as the baseline. Devices that appear in later scans will be flagged as new.",
+    meta: (s) => `${s.network} · ${fmtDate(s.finished)} · ${s.duration_s} s`,
+    footer: (s) => `NetScope ${s.version} · ${s.ports_checked.length} TCP ports checked per device · ${s.vendor_db_size.toLocaleString()} vendor prefixes`,
+    types: {
+      router: "Router / access point", printer: "Printer", camera: "Camera", nas: "NAS", console: "Game console", windows: "Windows PC",
+      "apple-mobile": "iPhone / iPad", apple: "Apple device", media: "Media / TV", "home-automation": "Smart home",
+      linux: "Linux / server", "virtual-machine": "Virtual machine", mobile: "Phone / tablet", unknown: "Unknown",
+    },
+    msg: {
+      telnet_open: "Telnet (23/tcp) is open: logins travel in clear text.",
+      ftp_open: "FTP (21/tcp) is open: files and passwords travel in clear text.",
+      vnc_open: "VNC remote control (5900/tcp) is reachable from the network.",
+      rdp_open: "Remote Desktop (3389/tcp) is reachable from the network.",
+      mqtt_open: "Unencrypted MQTT broker (1883/tcp) is reachable.",
+      smb_open: "File sharing (SMB, 445/tcp) is enabled.",
+      http_only_admin: "Web interface only over plain HTTP: its password is not encrypted.",
+      new_device: "New device: it was not seen in any earlier scan.",
+      private_mac: "Private (randomized) MAC: the vendor is hidden and may change.",
+    },
+  },
+  es: {
+    devices: "Dispositivos", findings: "Avisos", lang: "English", themeDark: "Oscuro", themeLight: "Claro",
+    tDevices: "Dispositivos", tNew: "Nuevos", tPorts: "Puertos abiertos", tCrit: "Críticos", tWarn: "Advertencias",
+    search: "Buscar IP, nombre, fabricante, MAC…", all: "Todos", exportCsv: "Exportar CSV",
+    colIp: "Dirección IP", colName: "Nombre", colVendor: "Fabricante", colMac: "MAC", colType: "Tipo",
+    colPorts: "Puertos abiertos", colFindings: "Avisos", colDevice: "Dispositivo", colSeverity: "Gravedad", colFinding: "Aviso",
+    none: "Ninguno", noMatches: "Ningún dispositivo coincide con los filtros.", noFindings: "Sin avisos: no se ha detectado nada arriesgado.",
+    back: "← Todos los dispositivos", identity: "Identificación", openPorts: "Puertos abiertos", deviceFindings: "Avisos",
+    port: "Puerto", service: "Servicio", noPorts: "Ninguno de los puertos comprobados está abierto.",
+    hostname: "Nombre de equipo", mac: "Dirección MAC", vendor: "Fabricante", type: "Tipo (estimado)", seenBy: "Detectado por",
+    firstSeen: "Visto por primera vez", gateway: "Puerta de enlace", thisDevice: "Este equipo (el que escanea)",
+    newPill: "Nuevo", gatewayPill: "Router", selfPill: "Este PC", privateMac: "MAC privada",
+    unknownVendor: "Fabricante desconocido", yes: "Sí",
+    crit: "Crítico", warn: "Advertencia", info: "Info",
+    baseline: "Primer escaneo de esta red: todos los dispositivos se han guardado como referencia. Los que aparezcan en escaneos posteriores se marcarán como nuevos.",
+    meta: (s) => `${s.network} · ${fmtDate(s.finished)} · ${s.duration_s} s`,
+    footer: (s) => `NetScope ${s.version} · ${s.ports_checked.length} puertos TCP comprobados por dispositivo · ${s.vendor_db_size.toLocaleString("es-ES")} prefijos de fabricante`,
+    types: {
+      router: "Router / punto de acceso", printer: "Impresora", camera: "Cámara", nas: "NAS", console: "Videoconsola", windows: "PC con Windows",
+      "apple-mobile": "iPhone / iPad", apple: "Dispositivo Apple", media: "Multimedia / TV", "home-automation": "Domótica",
+      linux: "Linux / servidor", "virtual-machine": "Máquina virtual", mobile: "Móvil / tableta", unknown: "Desconocido",
+    },
+    msg: {
+      telnet_open: "Telnet (23/tcp) está abierto: los inicios de sesión viajan sin cifrar.",
+      ftp_open: "FTP (21/tcp) está abierto: archivos y contraseñas viajan sin cifrar.",
+      vnc_open: "El control remoto VNC (5900/tcp) es accesible desde la red.",
+      rdp_open: "El Escritorio remoto (3389/tcp) es accesible desde la red.",
+      mqtt_open: "Hay un servidor MQTT sin cifrar (1883/tcp) accesible.",
+      smb_open: "Compartir archivos (SMB, 445/tcp) está activado.",
+      http_only_admin: "Panel web solo por HTTP: su contraseña no va cifrada.",
+      new_device: "Dispositivo nuevo: no aparecía en ningún escaneo anterior.",
+      private_mac: "MAC privada (aleatoria): oculta el fabricante y puede cambiar.",
+    },
+  },
+};
+
+const SEV_ORDER = { crit: 0, warn: 1, info: 2 };
+const RISKY_PORTS = new Set([21, 23, 1883, 3389, 5900]);
+const store = {
+  get(k) { try { return localStorage.getItem("netscope." + k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem("netscope." + k, v); } catch (e) { /* storage unavailable */ } },
+};
+const state = {
+  lang: (["en", "es"].includes(new URLSearchParams(location.search).get("lang")) && new URLSearchParams(location.search).get("lang")) ||
+    store.get("lang") || ((navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en"),
+  view: "devices", type: "all", sev: "all", q: "", sort: "ip", dir: 1, device: null,
+};
+const t = (k) => I18N[state.lang][k];
+const app = document.getElementById("app");
+
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString(state.lang === "es" ? "es-ES" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+}
+function ipNum(ip) { return ip.split(".").reduce((n, p) => n * 256 + Number(p), 0); }
+function devName(d) { return d.label || d.hostname || ""; }
+function typeName(code) { return t("types")[code] || code; }
+function findingText(f) { return t("msg")[f.code] || f.message; }
+function worst(d) { return d.findings.reduce((w, f) => (w == null || SEV_ORDER[f.severity] < SEV_ORDER[w] ? f.severity : w), null); }
+function sevPill(sev, label) { return `<span class="pill ${esc(sev)}">${esc(label || t(sev))}</span>`; }
+
+function badges(d) {
+  let out = "";
+  if (d.new) out += ` <span class="pill new">${esc(t("newPill"))}</span>`;
+  if (d.is_gateway) out += ` <span class="pill info">${esc(t("gatewayPill"))}</span>`;
+  if (d.is_self) out += ` <span class="pill info">${esc(t("selfPill"))}</span>`;
+  return out;
+}
+function portsHtml(d) {
+  if (!d.open_ports.length) return `<span class="sub">—</span>`;
+  return `<span class="ports">${d.open_ports.map((p) => `<span class="port${RISKY_PORTS.has(p) ? " risky" : ""}" title="${esc(d.services[p] || "")}">${p}</span>`).join("")}</span>`;
+}
+function findingsCell(d) {
+  const w = worst(d);
+  if (!w) return `<span class="sub">—</span>`;
+  const first = findingText(d.findings[0]);
+  return `${sevPill(w, String(d.findings.length))} <span class="sub trunc" title="${esc(first)}">${esc(first)}</span>`;
+}
+
+function filteredDevices() {
+  const q = state.q.trim().toLowerCase();
+  const rows = SCAN.devices.filter((d) => {
+    if (state.type !== "all" && d.type !== state.type) return false;
+    if (!q) return true;
+    return [d.ip, d.mac, d.vendor, d.hostname, d.label, typeName(d.type)].some((v) => v && String(v).toLowerCase().includes(q));
+  });
+  const key = {
+    ip: (d) => ipNum(d.ip), name: (d) => devName(d).toLowerCase(), vendor: (d) => (d.vendor || "").toLowerCase(),
+    mac: (d) => d.mac || "", type: (d) => typeName(d.type), ports: (d) => d.open_ports.length,
+    findings: (d) => { const w = worst(d); return w == null ? 9 : SEV_ORDER[w] * 100 - d.findings.length; },
+  }[state.sort];
+  return rows.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * state.dir);
+}
+
+function renderTiles() {
+  const devs = SCAN.devices;
+  const all = devs.flatMap((d) => d.findings);
+  const tiles = [
+    ["tDevices", devs.length, ""],
+    ["tNew", devs.filter((d) => d.new).length, devs.some((d) => d.new) ? "warn" : "ok"],
+    ["tPorts", devs.reduce((n, d) => n + d.open_ports.length, 0), ""],
+    ["tCrit", all.filter((f) => f.severity === "crit").length, all.some((f) => f.severity === "crit") ? "crit" : "ok"],
+    ["tWarn", all.filter((f) => f.severity === "warn").length, all.some((f) => f.severity === "warn") ? "warn" : "ok"],
+  ];
+  return `<div class="tiles">${tiles.map(([k, v, cls]) => `<div class="tile ${cls}"><div class="label">${esc(t(k))}</div><div class="value">${v}</div></div>`).join("")}</div>`;
+}
+
+function renderDevices() {
+  const types = [...new Set(SCAN.devices.map((d) => d.type))].sort((a, b) => typeName(a).localeCompare(typeName(b)));
+  const cols = [["ip", "colIp"], ["name", "colName"], ["vendor", "colVendor"], ["mac", "colMac"], ["type", "colType"], ["ports", "colPorts"], ["findings", "colFindings"]];
+  const rows = filteredDevices();
+  const head = cols.map(([k, label]) => `<th data-sort="${k}">${esc(t(label))}${state.sort === k ? `<span class="arrow">${state.dir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("");
+  const body = rows.map((d) => `<tr class="clickable" data-ip="${esc(d.ip)}">
+      <td class="mono">${esc(d.ip)}${badges(d)}</td>
+      <td>${devName(d) ? esc(devName(d)) : `<span class="sub">—</span>`}</td>
+      <td>${d.vendor ? `<span class="trunc" title="${esc(d.vendor)}">${esc(d.vendor)}</span>` : `<span class="sub">${esc(d.randomized_mac ? t("privateMac") : "—")}</span>`}</td>
+      <td class="mono">${esc(d.mac || "—")}</td>
+      <td>${esc(typeName(d.type))}</td>
+      <td>${portsHtml(d)}</td>
+      <td>${findingsCell(d)}</td></tr>`).join("");
+  app.innerHTML = `${SCAN.baseline ? `<div class="banner">${esc(t("baseline"))}</div>` : ""}${renderTiles()}
+    <div class="card">
+      <div class="toolbar"><h2>${esc(t("devices"))}</h2>
+        <input type="search" id="q" placeholder="${esc(t("search"))}" value="${esc(state.q)}">
+        <button class="btn" id="csv">${esc(t("exportCsv"))}</button></div>
+      <div class="chips">${["all", ...types].map((ty) => `<button class="btn chip${state.type === ty ? " active" : ""}" data-type="${esc(ty)}">${esc(ty === "all" ? t("all") : typeName(ty))} <span class="sub">${ty === "all" ? SCAN.devices.length : SCAN.devices.filter((d) => d.type === ty).length}</span></button>`).join("")}</div>
+      <div class="table-wrap">${rows.length ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` : `<div class="empty">${esc(t("noMatches"))}</div>`}</div>
+    </div>`;
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => { state.q = q.value; renderDevices(); const n = document.getElementById("q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); });
+  document.getElementById("csv").addEventListener("click", () => exportCsv(rows));
+  app.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => { state.type = b.dataset.type; renderDevices(); }));
+  app.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
+    state.dir = state.sort === th.dataset.sort ? -state.dir : 1; state.sort = th.dataset.sort; renderDevices();
+  }));
+  app.querySelectorAll("tr[data-ip]").forEach((tr) => tr.addEventListener("click", () => openDevice(tr.dataset.ip)));
+}
+
+function renderDetail() {
+  const d = SCAN.devices.find((x) => x.ip === state.device);
+  if (!d) { state.device = null; return renderDevices(); }
+  const facts = [
+    ["hostname", devName(d) || "—"], ["mac", d.mac || "—"],
+    ["vendor", d.vendor || (d.randomized_mac ? t("privateMac") : t("unknownVendor"))],
+    ["type", typeName(d.type)], ["seenBy", d.evidence.join(", ").toUpperCase()],
+    ["firstSeen", fmtDate(d.first_seen)],
+  ];
+  if (d.is_gateway) facts.push(["gateway", t("yes")]);
+  if (d.is_self) facts.push(["thisDevice", t("yes")]);
+  app.innerHTML = `<div class="detail-head"><button class="btn" id="back">${esc(t("back"))}</button>
+      <h1>${esc(devName(d) || d.ip)}</h1><span class="sub mono">${esc(d.ip)}</span>${badges(d)}</div>
+    <div class="grid">
+      <div class="card"><h3>${esc(t("identity"))}</h3><dl>${facts.map(([k, v]) => `<dt>${esc(t(k))}</dt><dd>${esc(v)}</dd>`).join("")}</dl></div>
+      <div class="card"><h3>${esc(t("openPorts"))}</h3>${d.open_ports.length
+        ? `<table><thead><tr><th>${esc(t("port"))}</th><th>${esc(t("service"))}</th></tr></thead><tbody>${d.open_ports.map((p) => `<tr><td class="mono">${p}/tcp</td><td>${esc(d.services[p] || "—")}</td></tr>`).join("")}</tbody></table>`
+        : `<div class="empty">${esc(t("noPorts"))}</div>`}</div>
+      <div class="card"><h3>${esc(t("deviceFindings"))}</h3>${d.findings.length
+        ? `<ul class="issues">${d.findings.map((f) => `<li>${sevPill(f.severity)}<span>${esc(findingText(f))}</span></li>`).join("")}</ul>`
+        : `<div class="empty">${esc(t("none"))}</div>`}</div>
+    </div>`;
+  document.getElementById("back").addEventListener("click", () => { state.device = null; render(); });
+}
+
+function renderFindings() {
+  const items = SCAN.devices.flatMap((d) => d.findings.map((f) => ({ d, f })))
+    .filter(({ f }) => state.sev === "all" || f.severity === state.sev)
+    .sort((a, b) => SEV_ORDER[a.f.severity] - SEV_ORDER[b.f.severity] || ipNum(a.d.ip) - ipNum(b.d.ip));
+  const counts = (s) => SCAN.devices.reduce((n, d) => n + d.findings.filter((f) => s === "all" || f.severity === s).length, 0);
+  app.innerHTML = `${renderTiles()}<div class="card">
+      <div class="toolbar"><h2>${esc(t("findings"))}</h2></div>
+      <div class="chips">${["all", "crit", "warn", "info"].map((s) => `<button class="btn chip${state.sev === s ? " active" : ""}" data-sev="${s}">${esc(s === "all" ? t("all") : t(s))} <span class="sub">${counts(s)}</span></button>`).join("")}</div>
+      <div class="table-wrap">${items.length ? `<table><thead><tr><th>${esc(t("colSeverity"))}</th><th>${esc(t("colDevice"))}</th><th>${esc(t("colFinding"))}</th></tr></thead><tbody>${items.map(({ d, f }) => `<tr class="clickable" data-ip="${esc(d.ip)}"><td>${sevPill(f.severity)}</td><td><span class="mono">${esc(d.ip)}</span> <span class="sub">${esc(devName(d) || d.vendor || "")}</span></td><td style="white-space:normal">${esc(findingText(f))}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">${esc(t("noFindings"))}</div>`}</div>
+    </div>`;
+  app.querySelectorAll("[data-sev]").forEach((b) => b.addEventListener("click", () => { state.sev = b.dataset.sev; renderFindings(); }));
+  app.querySelectorAll("tr[data-ip]").forEach((tr) => tr.addEventListener("click", () => openDevice(tr.dataset.ip)));
+}
+
+function exportCsv(rows) {
+  const cols = ["ip", "hostname", "mac", "vendor", "type", "open_ports", "new", "findings"];
+  const cell = (v) => { const s = String(v == null ? "" : v); return /^[=+\-@]/.test(s) ? `"'${s.replace(/"/g, '""')}"` : `"${s.replace(/"/g, '""')}"`; };
+  const lines = [cols.join(",")].concat(rows.map((d) => [d.ip, devName(d), d.mac, d.vendor, d.type, d.open_ports.join(" "), d.new ? "yes" : "", d.findings.map((f) => f.code).join(" ")].map(cell).join(",")));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `netscope-${SCAN.network.replace(/[./]/g, "_")}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function openDevice(ip) { state.device = ip; state.view = "devices"; render(); window.scrollTo(0, 0); }
+
+function render() {
+  document.documentElement.lang = state.lang;
+  document.getElementById("meta").textContent = t("meta")(SCAN);
+  document.getElementById("footer").textContent = t("footer")(SCAN);
+  document.querySelectorAll("nav [data-view]").forEach((b) => {
+    b.textContent = t(b.dataset.view);
+    b.setAttribute("aria-selected", String(b.dataset.view === state.view));
+  });
+  document.getElementById("lang").textContent = t("lang");
+  const dark = document.documentElement.dataset.theme === "dark" ||
+    (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.getElementById("theme").textContent = dark ? t("themeLight") : t("themeDark");
+  if (state.view === "findings") renderFindings();
+  else if (state.device) renderDetail();
+  else renderDevices();
+}
+
+document.querySelectorAll("nav [data-view]").forEach((b) => b.addEventListener("click", () => { state.view = b.dataset.view; state.device = null; render(); }));
+document.getElementById("lang").addEventListener("click", () => { state.lang = state.lang === "es" ? "en" : "es"; store.set("lang", state.lang); render(); });
+document.getElementById("theme").addEventListener("click", () => {
+  const dark = document.getElementById("theme").textContent === t("themeLight");
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  store.set("theme", document.documentElement.dataset.theme); render();
+});
+const savedTheme = store.get("theme");
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+if (SCAN) render(); else app.innerHTML = `<div class="empty">No scan data.</div>`;
+</script>
+</body>
+</html>
