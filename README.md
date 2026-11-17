@@ -16,6 +16,8 @@ NetScope sweeps a private network and tells you what each device is: *"LG webOS 
 
 A fictitious office network of 20 devices, built with the same code. *Leer en [español](README.es.md).*
 
+![NetScope dashboard tour: devices, findings, changes and device pages](docs/demo.gif)
+
 ## What it finds
 
 | | |
@@ -155,6 +157,12 @@ One self-contained HTML file with no external resources, in **English and Spanis
 - **Changes** since the previous scan, and the changes of earlier scans.
 - CSV export, direct links (`#findings`, `#changes`, `#device=10.20.0.10`, `?lang=es`).
 
+![All findings across the network](docs/findings.png)
+
+![Device page with names, banners, certificate and findings](docs/device-detail.png)
+
+![Changes since the previous scan](docs/changes.png)
+
 Names and banners come from the network and are untrusted: the scan data is escaped before it is embedded and every value is rendered as text.
 
 ## Project layout
@@ -175,7 +183,8 @@ src/netscope/
   report.py      dashboard rendering (templates/report.html)
   cli.py         command line
 tests/           pytest suite: parsers fed with crafted packets, probes against loopback servers
-tools/           demo generator, .pyz and PyInstaller builds, release notes
+tools/           demo generator, .pyz and PyInstaller builds, release notes,
+                 README GIF (make_gif.ps1) and social preview (social-preview.html)
 ```
 
 **CI** runs ruff and the test suite on Windows and Linux with Python 3.10 and 3.13, plus a real smoke scan of the runner's own subnet. **Releases** are built by GitHub Actions on Windows, Linux and macOS when a version tag is pushed.

@@ -8,6 +8,8 @@ NetScope recorre una red privada y te dice qué es cada dispositivo: *"LG webOS 
 
 ### ▶ [Abrir la demo](https://davidgori.github.io/NetScope/?lang=es)
 
+![Recorrido por el panel de NetScope](docs/demo.gif)
+
 ## Qué detecta
 
 - **Dispositivos:**

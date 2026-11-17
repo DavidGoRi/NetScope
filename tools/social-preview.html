@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Source of docs/social-preview.png (1280x640). Render with:
+     msedge --headless=new --window-size=1280,640 --screenshot=docs/social-preview.png tools/social-preview.html -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NetScope social preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    width: 1280px; height: 640px; overflow: hidden; position: relative;
+    background: radial-gradient(circle at 85% 0%, #14302d 0%, #0f1419 45%), #0f1419;
+    color: #e6eaef; font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  .left { position: absolute; left: 72px; top: 80px; width: 570px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand svg { width: 64px; height: 64px; color: #3cc9b8; }
+  .brand h1 { font-size: 76px; font-weight: 700; letter-spacing: -1px; }
+  .tagline { margin-top: 28px; font-size: 30px; line-height: 1.32; color: #c9d1da; }
+  .tagline b { color: #ffffff; font-weight: 650; }
+  .chips { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px 10px; }
+  .chip { font-size: 19px; padding: 6px 15px; border-radius: 999px; border: 1px solid #2c3641; background: #171d24; }
+  .chip.accent { border-color: #3cc9b8; color: #3cc9b8; background: #123a36; }
+  .footer { position: absolute; left: 72px; bottom: 50px; font-size: 21px; color: #93a1b0; }
+  .footer b { color: #e6eaef; }
+  .window {
+    position: absolute; left: 672px; top: 96px; width: 700px; height: 460px; overflow: hidden;
+    border: 1px solid #2c3641; border-radius: 12px; background: #0f1419;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, .45);
+  }
+  .bar { height: 30px; background: #1f2730; display: flex; align-items: center; gap: 8px; padding-left: 14px; }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a4552; display: block; }
+  .window img { display: block; width: 1050px; transform-origin: 0 0; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 7.5v4M12 11.5l-5.5 4.5M12 11.5l5.5 4.5"/></svg>
+      <h1>NetScope</h1>
+    </div>
+    <p class="tagline"><b>Find every device</b> on your local network, see what it is and <b>spot the risky ones</b>. No admin rights needed.</p>
+    <div class="chips">
+      <span class="chip accent">Python 3.10+</span>
+      <span class="chip">mDNS · UPnP · NetBIOS</span>
+      <span class="chip">SMBv1 · TLS checks</span>
+      <span class="chip">Change history</span>
+      <span class="chip">Alerts</span>
+      <span class="chip">Win · Linux · macOS · Android</span>
+    </div>
+  </div>
+  <div class="footer"><b>v1.0.0</b> · 137 tests · MIT · github.com/DavidGoRi/NetScope</div>
+  <div class="window">
+    <div class="bar"><i></i><i></i><i></i></div>
+    <img src="../docs/dashboard.png" alt="">
+  </div>
+</body>
+</html>

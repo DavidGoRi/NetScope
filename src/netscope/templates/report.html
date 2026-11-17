@@ -135,7 +135,7 @@ const I18N = {
     crit: "Critical", warn: "Warning", info: "Info",
     baseline: "First scan of this network: every device has been saved as the baseline. Devices that appear in later scans will be flagged as new.",
     meta: (s) => `${s.network} · ${fmtDate(s.finished)} · ${s.duration_s} s`,
-    footer: (s) => `NetScope ${s.version} · ${s.ports_checked.length} TCP ports checked per device · ${s.vendor_db_size.toLocaleString()} vendor prefixes`,
+    footer: (s) => `NetScope ${s.version} · ${s.ports_checked.length} TCP ports checked per device · ${s.vendor_db_size.toLocaleString("en-US")} vendor prefixes`,
     types: {
       router: "Router / access point", printer: "Printer", camera: "Camera", nas: "NAS", console: "Game console", windows: "Windows PC",
       "apple-mobile": "iPhone / iPad", apple: "Apple device", media: "Media / TV", "home-automation": "Smart home",
