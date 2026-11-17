@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DavidGoRi/NetScope/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidGoRi/NetScope/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-live-0f8a7e)](https://davidgori.github.io/NetScope/)
-![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-success)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
@@ -133,7 +133,7 @@ tests/           pytest suite (no network needed except a local loopback socket)
 tools/make_demo.py   builds the public demo from a fictitious network
 ```
 
-CI runs ruff and the test suite on Windows and Linux with Python 3.9 and 3.13, and a real smoke scan of the runner's own subnet.
+CI runs ruff and the test suite on Windows and Linux with Python 3.10 and 3.13, and a real smoke scan of the runner's own subnet.
 
 ## Responsible use
 

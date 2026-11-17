@@ -12,4 +12,4 @@ First version.
 - Known-device register with "new device" detection.
 - Self-contained HTML dashboard in English and Spanish with CSV export.
 - Safety gate: private ranges only, at most 1,024 hosts.
-- CI on Windows and Linux (Python 3.9 and 3.13) and a live demo on GitHub Pages.
+- CI on Windows and Linux (Python 3.10 and 3.13) and a live demo on GitHub Pages.
