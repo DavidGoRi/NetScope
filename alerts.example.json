@@ -1,0 +1,19 @@
+{
+  "title": "NetScope - Office network",
+  "minLevel": "crit",
+  "newDevices": true,
+  "openedRiskyPorts": true,
+  "telegram": {
+    "enabled": false,
+    "chatId": "123456789"
+  },
+  "email": {
+    "enabled": false,
+    "server": "smtp.office365.com",
+    "port": 587,
+    "security": "starttls",
+    "user": "it-alerts@example.com",
+    "from": "it-alerts@example.com",
+    "to": ["it@example.com"]
+  }
+}

@@ -2,42 +2,70 @@
 
 *Read in [English](README.md).*
 
-**Encuentra todos los dispositivos de tu red local, identifícalos y detecta los que suponen un riesgo, en unos diez segundos y sin permisos de administrador.**
+**Encuentra todos los dispositivos de tu red local, averigua qué son y detecta los que suponen un riesgo, en unos diez segundos y sin permisos de administrador.**
 
-NetScope recorre una red privada, deduce qué es cada dispositivo (router, impresora, cámara, NAS, PC con Windows, móvil…), comprueba una lista corta de puertos conocidos y genera un panel HTML de un solo archivo que señala lo que merece atención: una cámara con Telnet abierto, una impresora cuyo panel web no usa HTTPS, un Escritorio remoto accesible desde toda la red o **un dispositivo que ayer no estaba**.
+NetScope recorre una red privada y te dice qué es cada dispositivo: *"LG webOS TV 43UJ620V"*, *"Synology DS923+"*, *"HP LaserJet MFP M234"*, *"TV del salón (Chromecast)"*. Comprueba una lista corta de puertos conocidos, busca problemas de seguridad reales y genera un panel HTML de un solo archivo. Además, recuerda los escaneos anteriores: te dice **qué ha cambiado** y te avisa por **Telegram o correo** cuando aparece un dispositivo nuevo.
 
 ### ▶ [Abrir la demo](https://davidgori.github.io/NetScope/?lang=es)
 
-La demo muestra la red ficticia de una oficina con 20 dispositivos.
+## Qué detecta
 
-## Por qué
+- **Dispositivos:**
+  - ping y tabla ARP, que también encuentra los móviles y PC con Windows que ignoran el ping;
+  - barrido TCP donde no hay tabla ARP (Android).
+- **Identidad:**
+  - fabricante por la MAC y DNS inverso;
+  - nombres, modelos y servicios por **mDNS/Bonjour**;
+  - fabricante y modelo por **UPnP**;
+  - nombre y grupo de trabajo por **NetBIOS**;
+  - títulos de los paneles web y cabeceras de SSH y FTP.
+- **Riesgos:**
+  - críticos: Telnet abierto y **SMBv1 activado**;
+  - advertencias: FTP, VNC, Escritorio remoto o MQTT accesibles, paneles web solo por HTTP, **certificados HTTPS caducados** y dispositivos nuevos;
+  - informativos: certificados a punto de caducar o autofirmados, y **UPnP activado** en el router.
+- **Cambios:** dispositivos nuevos, los que se van o vuelven, cambios de IP o de nombre y puertos que se abren o se cierran, con historial.
 
-"¿Qué hay realmente conectado a nuestra red?" es una de las primeras preguntas en cualquier puesto de soporte o seguridad, y la respuesta suele ser una hoja de cálculo que nadie actualiza.
+Todo es **de solo lectura y no intrusivo**: nunca prueba contraseñas ni ataques, solo lee lo que los dispositivos anuncian o enseñan a cualquier cliente.
 
-- **Sin dependencias:** solo la biblioteca estándar de Python. Ni Npcap, ni nmap, ni agentes.
-- **Sin permisos de administrador:** usa el `ping` del sistema y la tabla ARP; los puertos se comprueban con conexiones TCP normales.
-- **Seguro por diseño:** rechaza rangos públicos y redes de más de 1024 equipos, y solo comprueba 26 puertos conocidos salvo que se le indique otra cosa.
-- **Panel sin conexión:** un único HTML autocontenido, en español e inglés, con tema claro y oscuro y exportación a CSV.
+## Instalación en cualquier dispositivo
 
-## Cómo funciona
+Descarga desde la [última versión](https://github.com/DavidGoRi/NetScope/releases/latest):
 
-1. **Descubrimiento:** un ping a cada dirección (64 a la vez). Aunque un equipo ignore el ping (los Windows y los móviles lo hacen por defecto), el sistema tiene que resolver su MAC por ARP antes, así que al leer la tabla ARP aparece igualmente. En una red doméstica real encuentra 18 dispositivos donde el ping solo encuentra 11.
-2. **Identificación:** el fabricante sale del prefijo de la MAC (registro público del IEEE). Las MAC "privadas" aleatorias de los móviles se detectan y se marcan. El DNS inverso añade el nombre del equipo.
-3. **Puertos:** comprobación TCP asíncrona de 26 puertos comunes (SSH, Telnet, HTTP/S, SMB, RDP, VNC, impresión, MQTT, RTSP, Chromecast, Plex…).
-4. **Clasificación y avisos:** Telnet abierto es crítico; FTP, VNC, RDP, MQTT sin cifrar, paneles web solo por HTTP y dispositivos nuevos son advertencias.
-5. **Historial:** cada dispositivo se guarda en `known_devices.json` por su MAC. El primer escaneo es la referencia; a partir de ahí se marcan los nuevos.
+| Sistema | Archivo | Cómo se usa |
+|---|---|---|
+| **Windows** 10/11 | `netscope-windows-x64.exe` | `netscope-windows-x64.exe scan` (sin instalar Python) |
+| **Linux** x64 | `netscope-linux-x64` | `chmod +x netscope-linux-x64 && ./netscope-linux-x64 scan` |
+| **macOS** (Apple silicon) | `netscope-macos-arm64` | `chmod +x` y `xattr -d com.apple.quarantine` (no está notarizado), después `./netscope-macos-arm64 scan` |
+| **Android** (Termux) | `netscope.pyz` | `pkg install python` y `python netscope.pyz scan` |
+| **Cualquiera con Python 3.10+** | `netscope.pyz` | `python3 netscope.pyz scan` |
 
-## Uso rápido
+En Android, el sistema no deja a las apps leer la tabla ARP ni las MAC: NetScope encuentra los equipos por ping y por TCP, y el resto de la identificación funciona igual.
+
+Si prefieres instalarlo con pip:
 
 ```bash
-git clone https://github.com/DavidGoRi/NetScope.git
-cd NetScope
-python -m pip install .
-netscope update-oui        # una vez: descarga el registro de fabricantes del IEEE
-netscope scan              # escanea la red de este equipo
+pip install git+https://github.com/DavidGoRi/NetScope.git
+netscope update-oui   # una vez: descarga el registro de fabricantes del IEEE
+netscope scan
 ```
 
-El panel se guarda en `output/netscope-report.html` y cada escaneo, en JSON, en `output/scans/`. Las opciones (`--cidr`, `--ports`, `--json`, `--fail-on`…) están explicadas en el [README en inglés](README.md#usage).
+## Uso
+
+```bash
+netscope scan                                  # escanea la red de este equipo
+netscope watch --every 15m                     # escanea cada 15 minutos hasta Ctrl+C
+netscope schedule --every 30m --alert          # tarea programada (Windows) o cron (Linux, macOS, Termux)
+netscope schedule --remove
+netscope alert-test                            # prueba la configuración de alertas
+```
+
+El panel se guarda en `output/netscope-report.html`, cada escaneo en `output/scans/` y los dispositivos conocidos en `output/known_devices.json`. Allí, el campo `label` le pone un nombre propio a cada dispositivo.
+
+### Alertas
+
+Copia [`alerts.example.json`](alerts.example.json) a `output/alerts.json` y activa Telegram o el correo. Los secretos van en variables de entorno, nunca en el archivo: `NETSCOPE_TELEGRAM_TOKEN` y `NETSCOPE_SMTP_PASSWORD`. Cada aviso se envía una sola vez; si un problema se arregla y vuelve a aparecer, se avisa de nuevo.
+
+Las demás opciones (`--cidr`, `--ports`, `--quick`, `--json`, `--fail-on`…) están en el [README en inglés](README.md#usage).
 
 ## Uso responsable
 

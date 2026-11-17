@@ -8,14 +8,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
+import platform
 import re
 import socket
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FuturesTimeout
 
-from netscope.network import is_windows, run
+from netscope.network import is_android, is_windows, run
 
 _MAC_RE = re.compile(r"\b(?:[0-9a-f]{1,2}[:-]){5}[0-9a-f]{1,2}\b", re.IGNORECASE)
 _IP_RE = re.compile(r"\b(\d{1,3}(?:\.\d{1,3}){3})\b")
@@ -48,17 +50,26 @@ def parse_neighbors(text: str) -> dict[str, str]:
 
 
 def read_neighbors() -> dict[str, str]:
+    if is_android():
+        return {}  # /proc/net/arp and netlink neighbours are blocked for apps
     if is_windows():
         return parse_neighbors(run(["arp", "-a"]))
     text = run(["ip", "neigh", "show"]) or run(["arp", "-an"])
     return parse_neighbors(text)
 
 
+def ping_command(ip: str, timeout_ms: int, system: str | None = None) -> list[str]:
+    system = system or platform.system()
+    if system == "Windows":
+        return ["ping", "-n", "1", "-w", str(timeout_ms), ip]
+    if system == "Darwin":  # macOS: -W is in milliseconds
+        return ["ping", "-c", "1", "-W", str(timeout_ms), ip]
+    # Linux, Android (toybox) and BSD: -W is in seconds
+    return ["ping", "-c", "1", "-W", str(max(1, round(timeout_ms / 1000))), ip]
+
+
 def ping(ip: str, timeout_ms: int = 800) -> bool:
-    if is_windows():
-        cmd = ["ping", "-n", "1", "-w", str(timeout_ms), ip]
-    else:
-        cmd = ["ping", "-c", "1", "-W", str(max(1, round(timeout_ms / 1000))), ip]
+    cmd = ping_command(ip, timeout_ms)
     # "TTL=" only appears in real echo replies; Windows also exits with 0 when a
     # router answers "destination host unreachable".
     return "ttl=" in run(cmd, timeout=timeout_ms / 1000 + 5).lower()
@@ -80,6 +91,30 @@ def ping_sweep(
             if progress:
                 progress(done, len(targets))
     return alive
+
+
+#: Ports used to find hosts by TCP when the ARP table cannot be read (Android).
+#: A "connection refused" answer proves the host is there just as well as "open".
+TCP_DISCOVERY_PORTS = (80, 443, 445, 22, 139, 62078, 8080, 8008, 7000, 5353)
+
+
+def tcp_sweep(ips: Iterable[str], timeout: float = 0.8, concurrency: int = 256) -> set[str]:
+    from netscope.ports import CLOSED, OPEN, probe
+
+    targets = list(ips)
+
+    async def sweep() -> set[str]:
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def check(ip: str, port: int) -> str | None:
+            async with semaphore:
+                state = await probe(ip, port, timeout)
+            return ip if state in (OPEN, CLOSED) else None
+
+        found = await asyncio.gather(*(check(ip, p) for ip in targets for p in TCP_DISCOVERY_PORTS))
+        return {ip for ip in found if ip}
+
+    return asyncio.run(sweep()) if targets else set()
 
 
 def resolve_names(ips: Iterable[str], timeout: float = 4.0) -> dict[str, str]:

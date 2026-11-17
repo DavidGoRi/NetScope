@@ -45,6 +45,19 @@ def is_windows() -> bool:
     return platform.system() == "Windows"
 
 
+def is_android() -> bool:
+    """Termux and other Android shells: no ARP table access since Android 10."""
+    import os
+
+    return "ANDROID_ROOT" in os.environ or "TERMUX_VERSION" in os.environ
+
+
+def platform_name() -> str:
+    if is_android():
+        return "Android"
+    return {"Darwin": "macOS"}.get(platform.system(), platform.system())
+
+
 def run(cmd: list[str], timeout: float = 10) -> str:
     """Run a command and return its stdout, or "" if it fails or times out."""
     try:
@@ -120,7 +133,7 @@ def detect_interface() -> LocalInterface | None:
     elif system == "Linux":
         details = _linux_details(ip)
     else:
-        details = _bsd_details()
+        details = _bsd_details(ip)
     return LocalInterface(
         ip=ip,
         prefix=details.get("prefix") or DEFAULT_PREFIX,
@@ -168,6 +181,27 @@ def _linux_details(ip: str) -> dict:
     return details
 
 
-def _bsd_details() -> dict:
+def parse_ifconfig(text: str, ip: str) -> dict:
+    """Prefix and MAC of the interface holding ``ip`` in macOS/BSD ``ifconfig`` output."""
+    for block in re.split(r"\n(?=\S)", text):
+        match = re.search(rf"inet {re.escape(ip)} netmask (0x[0-9a-f]{{8}}|[\d.]+)", block)
+        if not match:
+            continue
+        mask = match.group(1)
+        bits = int(mask, 16) if mask.startswith("0x") else int(ipaddress.IPv4Address(mask))
+        details: dict = {"prefix": bin(bits).count("1")}
+        ether = re.search(r"ether ((?:[0-9a-f]{1,2}:){5}[0-9a-f]{1,2})", block)
+        if ether:
+            from netscope.discovery import normalize_mac
+
+            details["mac"] = normalize_mac(ether.group(1))
+        return details
+    return {}
+
+
+def _bsd_details(ip: str) -> dict:
+    details = parse_ifconfig(run(["ifconfig"]), ip)
     match = re.search(r"gateway:\s*(\d+\.\d+\.\d+\.\d+)", run(["route", "-n", "get", "default"]))
-    return {"gateway": match.group(1)} if match else {}
+    if match:
+        details["gateway"] = match.group(1)
+    return details

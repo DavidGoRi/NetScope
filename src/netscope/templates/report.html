@@ -106,6 +106,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
   <nav role="tablist">
     <button role="tab" data-view="devices" aria-selected="true"></button>
     <button role="tab" data-view="findings" aria-selected="false"></button>
+    <button role="tab" data-view="changes" aria-selected="false"></button>
   </nav>
   <button class="btn" id="lang"></button>
   <button class="btn" id="theme"></button>
@@ -150,7 +151,25 @@ const I18N = {
       http_only_admin: "Web interface only over plain HTTP: its password is not encrypted.",
       new_device: "New device: it was not seen in any earlier scan.",
       private_mac: "Private (randomized) MAC: the vendor is hidden and may change.",
+      smb1_enabled: "SMBv1 is enabled: the old file-sharing protocol WannaCry used.",
+      tls_expired: "The HTTPS certificate has expired.",
+      tls_expiring: "The HTTPS certificate expires within 30 days.",
+      tls_self_signed: "Self-signed HTTPS certificate: browsers will show a warning.",
+      upnp_igd: "UPnP port forwarding is on: devices can open router ports by themselves.",
     },
+    changes: "Changes", tChanges: "Changes", sinceScan: (d) => `Since the previous scan (${d})`,
+    noPrevious: "This is the first scan of this network: changes will appear from the next one.",
+    noChanges: "Nothing changed since the previous scan.", earlier: "Earlier scans", scanOf: (d) => `Scan of ${d}`,
+    colChange: "Change", colDetail: "Detail",
+    kinds: {
+      new_device: "New device", appeared: "Back on the network", disappeared: "No longer on the network",
+      ip_changed: "IP address changed", ports_opened: "Ports opened", ports_closed: "Ports closed", name_changed: "Name changed",
+    },
+    model: "Model", mdnsName: "mDNS name", netbiosName: "NetBIOS name", workgroup: "Workgroup", upnpName: "UPnP name",
+    announced: "Announced services (mDNS)", webPages: "Web interfaces", certificate: "Certificate",
+    expires: (date, days) => days < 0 ? `expired on ${date}` : `expires ${date} (${days} days)`,
+    selfSigned: "self-signed", banners: "Services and banners", nothingMore: "The device did not reveal anything else.",
+    smb1On: "SMBv1 accepted", smb1Off: "SMBv1 refused",
   },
   es: {
     devices: "Dispositivos", findings: "Avisos", lang: "English", themeDark: "Oscuro", themeLight: "Claro",
@@ -184,7 +203,25 @@ const I18N = {
       http_only_admin: "Panel web solo por HTTP: su contraseña no va cifrada.",
       new_device: "Dispositivo nuevo: no aparecía en ningún escaneo anterior.",
       private_mac: "MAC privada (aleatoria): oculta el fabricante y puede cambiar.",
+      smb1_enabled: "SMBv1 está activado: el antiguo protocolo de archivos que usó WannaCry.",
+      tls_expired: "El certificado HTTPS ha caducado.",
+      tls_expiring: "El certificado HTTPS caduca en menos de 30 días.",
+      tls_self_signed: "Certificado HTTPS autofirmado: los navegadores mostrarán un aviso.",
+      upnp_igd: "UPnP está activado en el router: los dispositivos pueden abrir puertos por su cuenta.",
     },
+    changes: "Cambios", tChanges: "Cambios", sinceScan: (d) => `Desde el escaneo anterior (${d})`,
+    noPrevious: "Es el primer escaneo de esta red: los cambios aparecerán a partir del siguiente.",
+    noChanges: "No ha cambiado nada desde el escaneo anterior.", earlier: "Escaneos anteriores", scanOf: (d) => `Escaneo del ${d}`,
+    colChange: "Cambio", colDetail: "Detalle",
+    kinds: {
+      new_device: "Dispositivo nuevo", appeared: "Ha vuelto a la red", disappeared: "Ya no está en la red",
+      ip_changed: "Ha cambiado de IP", ports_opened: "Puertos abiertos", ports_closed: "Puertos cerrados", name_changed: "Ha cambiado de nombre",
+    },
+    model: "Modelo", mdnsName: "Nombre mDNS", netbiosName: "Nombre NetBIOS", workgroup: "Grupo de trabajo", upnpName: "Nombre UPnP",
+    announced: "Servicios anunciados (mDNS)", webPages: "Paneles web", certificate: "Certificado",
+    expires: (date, days) => days < 0 ? `caducó el ${date}` : `caduca el ${date} (${days} días)`,
+    selfSigned: "autofirmado", banners: "Servicios y cabeceras", nothingMore: "El dispositivo no ha revelado nada más.",
+    smb1On: "Acepta SMBv1", smb1Off: "Rechaza SMBv1",
   },
 };
 
@@ -213,7 +250,16 @@ function fmtDate(iso) {
 function ipNum(ip) { return ip.split(".").reduce((n, p) => n * 256 + Number(p), 0); }
 function devName(d) { return d.label || d.hostname || ""; }
 function typeName(code) { return t("types")[code] || code; }
-function findingText(f) { return t("msg")[f.code] || f.message; }
+function findingText(f) {
+  const text = t("msg")[f.code] || f.message;
+  return f.code.startsWith("tls_") && f.port ? `${text} (${f.port}/tcp)` : text;
+}
+function changeDetail(c) {
+  if (c.kind === "ip_changed") return `${c.old} → ${c.new}`;
+  if (c.kind === "name_changed") return `${c.old} → ${c.new}`;
+  if (c.ports) return c.ports.join(", ");
+  return c.vendor || "";
+}
 function worst(d) { return d.findings.reduce((w, f) => (w == null || SEV_ORDER[f.severity] < SEV_ORDER[w] ? f.severity : w), null); }
 function sevPill(sev, label) { return `<span class="pill ${esc(sev)}">${esc(label || t(sev))}</span>`; }
 
@@ -240,7 +286,7 @@ function filteredDevices() {
   const rows = SCAN.devices.filter((d) => {
     if (state.type !== "all" && d.type !== state.type) return false;
     if (!q) return true;
-    return [d.ip, d.mac, d.vendor, d.hostname, d.label, typeName(d.type)].some((v) => v && String(v).toLowerCase().includes(q));
+    return [d.ip, d.mac, d.vendor, d.model, d.hostname, d.label, typeName(d.type)].some((v) => v && String(v).toLowerCase().includes(q));
   });
   const key = {
     ip: (d) => ipNum(d.ip), name: (d) => devName(d).toLowerCase(), vendor: (d) => (d.vendor || "").toLowerCase(),
@@ -259,6 +305,7 @@ function renderTiles() {
     ["tPorts", devs.reduce((n, d) => n + d.open_ports.length, 0), ""],
     ["tCrit", all.filter((f) => f.severity === "crit").length, all.some((f) => f.severity === "crit") ? "crit" : "ok"],
     ["tWarn", all.filter((f) => f.severity === "warn").length, all.some((f) => f.severity === "warn") ? "warn" : "ok"],
+    ["tChanges", changeItems().length, changeItems().some((c) => c.severity === "warn") ? "warn" : ""],
   ];
   return `<div class="tiles">${tiles.map(([k, v, cls]) => `<div class="tile ${cls}"><div class="label">${esc(t(k))}</div><div class="value">${v}</div></div>`).join("")}</div>`;
 }
@@ -271,7 +318,7 @@ function renderDevices() {
   const body = rows.map((d) => `<tr class="clickable" data-ip="${esc(d.ip)}">
       <td class="mono">${esc(d.ip)}${badges(d)}</td>
       <td>${devName(d) ? esc(devName(d)) : `<span class="sub">—</span>`}</td>
-      <td>${d.vendor ? `<span class="trunc" title="${esc(d.vendor)}">${esc(d.vendor)}</span>` : `<span class="sub">${esc(d.randomized_mac ? t("privateMac") : "—")}</span>`}</td>
+      <td>${d.vendor ? `<span class="trunc" title="${esc(d.vendor)}">${esc(d.vendor)}</span>` : `<span class="sub">${esc(d.randomized_mac ? t("privateMac") : d.model ? "" : "—")}</span>`}${d.model ? `<br><span class="sub trunc" title="${esc(d.model)}">${esc(d.model)}</span>` : ""}</td>
       <td class="mono">${esc(d.mac || "—")}</td>
       <td>${esc(typeName(d.type))}</td>
       <td>${portsHtml(d)}</td>
@@ -303,12 +350,36 @@ function renderDetail() {
     ["type", typeName(d.type)], ["seenBy", d.evidence.join(", ").toUpperCase()],
     ["firstSeen", fmtDate(d.first_seen)],
   ];
+  if (d.model) facts.splice(3, 0, ["model", d.model]);
+  const upnp = d.upnp || {};
+  for (const [k, v] of [["mdnsName", d.mdns_name], ["netbiosName", d.netbios_name], ["workgroup", d.workgroup], ["upnpName", upnp.friendly_name]]) {
+    if (v && v !== devName(d)) facts.push([k, v]);
+  }
   if (d.is_gateway) facts.push(["gateway", t("yes")]);
   if (d.is_self) facts.push(["thisDevice", t("yes")]);
+
+  const extra = [];
+  for (const [port, page] of Object.entries(d.http || {})) {
+    const parts = [page.title, page.server, page.status ? `HTTP ${page.status}` : ""].filter(Boolean).join(" · ");
+    extra.push([`${port}/tcp`, parts || "—"]);
+    if (page.cert) {
+      const c = page.cert;
+      extra.push([`${port}/tcp ${t("certificate")}`, `${c.subject || "—"} · ${c.self_signed ? t("selfSigned") : c.issuer} · ${t("expires")(c.not_after, c.days_left)}`]);
+    }
+  }
+  if (d.ssh) extra.push(["SSH", d.ssh]);
+  if (d.ftp) extra.push(["FTP", d.ftp]);
+  if (upnp.server) extra.push(["UPnP", upnp.server]);
+  if (d.smb1 !== undefined) extra.push(["SMB", d.smb1 ? t("smb1On") : t("smb1Off")]);
+  if ((d.services_mdns || []).length) extra.push([t("announced"), d.services_mdns.join(", ")]);
+
   app.innerHTML = `<div class="detail-head"><button class="btn" id="back">${esc(t("back"))}</button>
       <h1>${esc(devName(d) || d.ip)}</h1><span class="sub mono">${esc(d.ip)}</span>${badges(d)}</div>
     <div class="grid">
       <div class="card"><h3>${esc(t("identity"))}</h3><dl>${facts.map(([k, v]) => `<dt>${esc(t(k))}</dt><dd>${esc(v)}</dd>`).join("")}</dl></div>
+      <div class="card"><h3>${esc(t("banners"))}</h3>${extra.length
+        ? `<dl>${extra.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`
+        : `<div class="empty">${esc(t("nothingMore"))}</div>`}</div>
       <div class="card"><h3>${esc(t("openPorts"))}</h3>${d.open_ports.length
         ? `<table><thead><tr><th>${esc(t("port"))}</th><th>${esc(t("service"))}</th></tr></thead><tbody>${d.open_ports.map((p) => `<tr><td class="mono">${p}/tcp</td><td>${esc(d.services[p] || "—")}</td></tr>`).join("")}</tbody></table>`
         : `<div class="empty">${esc(t("noPorts"))}</div>`}</div>
@@ -333,10 +404,35 @@ function renderFindings() {
   app.querySelectorAll("tr[data-ip]").forEach((tr) => tr.addEventListener("click", () => openDevice(tr.dataset.ip)));
 }
 
+function changeItems() { return (SCAN.changes && SCAN.changes.items) || []; }
+
+function changesTable(items) {
+  return `<table><thead><tr><th>${esc(t("colSeverity"))}</th><th>${esc(t("colChange"))}</th><th>${esc(t("colDevice"))}</th><th>${esc(t("colDetail"))}</th></tr></thead><tbody>${items.map((c) => {
+    const live = SCAN.devices.some((d) => d.ip === c.ip);
+    return `<tr${live ? ` class="clickable" data-ip="${esc(c.ip)}"` : ""}><td>${sevPill(c.severity)}</td><td>${esc(t("kinds")[c.kind] || c.message)}</td>
+      <td><span class="mono">${esc(c.ip)}</span> <span class="sub">${esc(c.name || "")}</span></td><td class="mono" style="white-space:normal">${esc(changeDetail(c))}</td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+function renderChanges() {
+  const changes = SCAN.changes || { since: null, items: [] };
+  let body;
+  if (!changes.since) body = `<div class="empty">${esc(t("noPrevious"))}</div>`;
+  else if (!changes.items.length) body = `<div class="empty">${esc(t("noChanges"))}</div>`;
+  else body = `<div class="table-wrap">${changesTable(changes.items)}</div>`;
+  const older = (SCAN.history || []).map((h) => `<div class="card" style="margin-top:14px">
+      <div class="toolbar"><h2>${esc(t("scanOf")(fmtDate(h.scan)))}</h2></div>
+      <div class="table-wrap">${changesTable(h.items)}</div></div>`).join("");
+  app.innerHTML = `${renderTiles()}<div class="card">
+      <div class="toolbar"><h2>${esc(changes.since ? t("sinceScan")(fmtDate(changes.since)) : t("changes"))}</h2></div>${body}</div>
+    ${older ? `<h2 style="font-size:15px;margin:22px 0 0">${esc(t("earlier"))}</h2>${older}` : ""}`;
+  app.querySelectorAll("tr[data-ip]").forEach((tr) => tr.addEventListener("click", () => openDevice(tr.dataset.ip)));
+}
+
 function exportCsv(rows) {
-  const cols = ["ip", "hostname", "mac", "vendor", "type", "open_ports", "new", "findings"];
+  const cols = ["ip", "hostname", "mac", "vendor", "model", "type", "open_ports", "new", "findings"];
   const cell = (v) => { const s = String(v == null ? "" : v); return /^[=+\-@]/.test(s) ? `"'${s.replace(/"/g, '""')}"` : `"${s.replace(/"/g, '""')}"`; };
-  const lines = [cols.join(",")].concat(rows.map((d) => [d.ip, devName(d), d.mac, d.vendor, d.type, d.open_ports.join(" "), d.new ? "yes" : "", d.findings.map((f) => f.code).join(" ")].map(cell).join(",")));
+  const lines = [cols.join(",")].concat(rows.map((d) => [d.ip, devName(d), d.mac, d.vendor, d.model, d.type, d.open_ports.join(" "), d.new ? "yes" : "", d.findings.map((f) => f.code).join(" ")].map(cell).join(",")));
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -347,7 +443,18 @@ function exportCsv(rows) {
 
 function openDevice(ip) { state.device = ip; state.view = "devices"; render(); window.scrollTo(0, 0); }
 
+function readHash() {
+  const hash = decodeURIComponent(location.hash.slice(1));
+  state.device = hash.startsWith("device=") ? hash.slice(7) : null;
+  state.view = ["findings", "changes"].includes(hash) ? hash : "devices";
+}
+function writeHash() {
+  const hash = state.device ? `#device=${state.device}` : state.view === "devices" ? "" : `#${state.view}`;
+  if (location.hash !== hash) history.replaceState(null, "", hash || location.pathname + location.search);
+}
+
 function render() {
+  writeHash();
   document.documentElement.lang = state.lang;
   document.getElementById("meta").textContent = t("meta")(SCAN);
   document.getElementById("footer").textContent = t("footer")(SCAN);
@@ -360,6 +467,7 @@ function render() {
     (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
   document.getElementById("theme").textContent = dark ? t("themeLight") : t("themeDark");
   if (state.view === "findings") renderFindings();
+  else if (state.view === "changes") renderChanges();
   else if (state.device) renderDetail();
   else renderDevices();
 }
@@ -373,6 +481,8 @@ document.getElementById("theme").addEventListener("click", () => {
 });
 const savedTheme = store.get("theme");
 if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+window.addEventListener("hashchange", () => { readHash(); render(); });
+readHash();
 if (SCAN) render(); else app.innerHTML = `<div class="empty">No scan data.</div>`;
 </script>
 </body>

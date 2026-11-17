@@ -1,0 +1,86 @@
+name: Release
+
+# Pushing a tag such as v1.0.0 builds NetScope for every platform and publishes
+# the GitHub release with the notes of that version from CHANGELOG.md:
+#   netscope.pyz                  any OS with Python 3.10+ (Windows, Linux, macOS, Android/Termux)
+#   netscope-windows-x64.exe      standalone, no Python needed
+#   netscope-linux-x64            standalone
+#   netscope-macos-arm64          standalone (Apple silicon)
+#   SHA256SUMS.txt
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    name: Create draft release with the .pyz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Check version, build .pyz and notes
+        run: |
+          version=$(python -c "import sys; sys.path.insert(0, 'src'); import netscope; print(netscope.__version__)")
+          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} does not match version $version"; exit 1; }
+          python tools/build.py pyz
+          python dist/netscope.pyz --version
+          python tools/release_notes.py "$version" > dist/notes.md
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/netscope.pyz --draft \
+            --title "NetScope ${GITHUB_REF_NAME}" --notes-file dist/notes.md
+
+  binaries:
+    name: Build ${{ matrix.os }} binary
+    needs: draft
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Build standalone binary
+        shell: bash
+        run: |
+          python -m pip install pyinstaller
+          python tools/build.py binary
+          ls -l dist
+          ./dist/netscope-* --version
+
+      - name: Upload to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/netscope-*
+
+  publish:
+    name: Checksums and publish
+    needs: binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add SHA256SUMS and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir assets && cd assets
+          gh release download "${GITHUB_REF_NAME}"
+          sha256sum netscope* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "${GITHUB_REF_NAME}" SHA256SUMS.txt
+          gh release edit "${GITHUB_REF_NAME}" --draft=false --latest

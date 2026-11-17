@@ -59,7 +59,12 @@ def test_no_command_prints_help(capsys):
 
 def fake_network(monkeypatch):
     """Replace every network call with a tiny fictional LAN."""
-    from netscope import discovery, ports
+    from netscope import discovery, identify, ports
+
+    monkeypatch.setattr(
+        identify, "identify",
+        lambda hosts, open_ports, local_ip=None: {"192.168.50.9": {"mdns_name": "tablet"}},
+    )
 
     monkeypatch.setattr(
         cli, "detect_interface",

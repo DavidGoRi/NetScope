@@ -13,11 +13,13 @@ license-files = ["LICENSE"]
 authors = [{ name = "DavidGoRi" }]
 keywords = ["network", "lan", "scanner", "inventory", "sysadmin", "it-support"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: System Administrators",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Android",
     "Programming Language :: Python :: 3",
     "Topic :: System :: Networking :: Monitoring",
 ]
@@ -48,6 +50,11 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test fixtures and demo data are long literal lines; keep them readable as-is.
+"tests/*" = ["E501"]
+"tools/*" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
